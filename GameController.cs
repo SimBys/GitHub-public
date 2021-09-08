@@ -192,7 +192,7 @@ public class GameController : MonoBehaviour
     public void RestartGame()
     {
         SaveCoins();
-        foreach (var enemy in ObjectPool.Instance.GetAllEnemys())
+        foreach (var enemy in ObjectPool.Instance.GetAllEnemies())
         {
             enemy.gameObject.SetActive(false);
         }
