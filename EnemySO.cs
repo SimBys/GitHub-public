@@ -1,12 +1,15 @@
 using UnityEngine;
+using UnityEngine.UI;
 
-//[CreateAssetMenu(fileName = "New Enemy", menuName = "Enemy")]
+[CreateAssetMenu(fileName = "New Enemy", menuName = "Enemy")]
 public class EnemySO : ScriptableObject
 {
     public int health;
     public int speed;
     public int DMG;
-    public GameObject prefab;
+    public GameObject HPSliderPrefab;
+    public GameObject onDeathParticles;
     public GameObject coinsDroppedPrefab;
     public int coinsDropped;
+
 }

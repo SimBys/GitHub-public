@@ -6,9 +6,13 @@ using UnityEngine.UI;
 public class ObjectPool : MonoBehaviour
 {
     public static ObjectPool Instance;
-    [SerializeField] EnemySO[] enemyScriptableObjects;
+    [SerializeField] GameObject[] enemyPrefabs;
+    [SerializeField] Material enemyMat;
+    [SerializeField] Transform container;
+    public Transform UIContainer; // UI pooling
+    public Transform test;
 
-    List<GameObject> enemys = new List<GameObject>();
+    List<GameObject> enemies = new List<GameObject>();
 
     private void Awake() // singleton
     {
@@ -19,14 +23,23 @@ public class ObjectPool : MonoBehaviour
     }
     public GameObject GetEnemy(int enemyIndex)
     {
-        for (int i = 0; i < enemys.Count; i++)
+        for (int i = 0; i < enemies.Count; i++)
         {
-            if (!enemys[i].activeInHierarchy)
-                return enemys[i];
+            if (!enemies[i].activeInHierarchy)
+                return enemies[i];
         }
-        GameObject GO = Instantiate(enemyScriptableObjects[enemyIndex].prefab, transform);
-        GO.AddComponent<EnemyScript>();
-        enemys.Add(GO);
+        GameObject GO = Instantiate(enemyPrefabs[enemyIndex], container);
+        enemies.Add(GO);
+        GO.GetComponent<Renderer>().material = enemyMat;
         return GO;
+    }
+    public Enemy[] GetAllEnemies()
+    {
+        Enemy[] tempArray = new Enemy[container.childCount];
+        for (int i = 0; i < container.childCount; i++)
+        {
+            tempArray[i] = container.GetChild(i).GetComponent<Enemy>();
+        }
+        return tempArray;
     }
 }

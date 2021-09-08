@@ -5,66 +5,66 @@ using UnityEngine.UI;
 
 public class Player : MonoBehaviour
 {
-    public static Player Instance;
-    public static float ammo;
+    public static Player Instance { get; private set; }
+    public bool isInvincible { get; private set; }
     [SerializeField] LineRenderer lineRenderer;
     [SerializeField] Transform firePoint;
     [SerializeField] ParticleSystem[] laserParticles;
     [SerializeField] Slider HP_Slider;
     [SerializeField] Slider ammo_Slider;
-    [SerializeField] Material playerMaterial;
-
+    [SerializeField] GameObject attackRangeCircle;
+    [Header("Changeable Variables")]
     [SerializeField] float speed;
     [SerializeField] float attackRange;
     [SerializeField] float fireRate;
-    [SerializeField] int maxHealth;
     [SerializeField] float ammoGenerationSpeed;
-
-    public bool isInvincible { get; };
-    public bool laser { get; };
     float health;
+    float DMG;
+    float ammo;
+    public float enemyFreeZone;
+    bool laser;
     Quaternion rotateToClosestEnemy;
     GameObject closestEnemy;
+    Rigidbody2D rb;
 
-    private void OnDrawGizmos()
+    private void OnDrawGizmosSelected()
     {
+        Gizmos.color = Color.red;
         UnityEditor.Handles.DrawWireDisc(transform.position, Vector3.back, attackRange);
+        Gizmos.color = Color.green;
+        Gizmos.DrawWireCube(transform.position, Vector3.one * enemyFreeZone * 2);
     }
     private void Awake()
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(this);
+        Instance = this;
+        SetOpacity(1);
+        rb = GetComponent<Rigidbody2D>();
         lineRenderer.enabled = false;
-        playerMaterial.color = new Color(playerMaterial.color.r, playerMaterial.color.g, playerMaterial.color.b, 1); // set alpha to 1
-        HP_Slider.maxValue = maxHealth;
+        HP_Slider.maxValue = 3;
     }
     private void Update()
     {
-        transform.position += (Vector3)JoyStick.Instance.Movement() * speed * Time.deltaTime; // movement
+        if (health < 0)
+            return;
+        rb.position += JoyStick.Instance.Movement() * speed * Time.deltaTime; // movement
         Laser();
         if (ammo < 100) // ammo generation
             ammo += Time.deltaTime * ammoGenerationSpeed;
         HP_Slider.value = health;
         ammo_Slider.value = ammo * 0.01f;
     }
-    private void OnTriggerEnter2D(Collider2D col)
+
+    private void OnEnable()
     {
-        if (col.CompareTag("Coin"))
-            Coin(col.gameObject);
-    }
-    void Coin(GameObject coin)
-    {
-        coin.transform.parent.gameObject.transform.GetChild(1).gameObject.GetComponent<ParticleSystem>().Play();
-        coin.SetActive(false);
-        GameController.score += 20;
+        DMG = SaveLoad.Load().DMG;
     }
     public void Laser()
     {
+        if (!laser)
+            return;
         closestEnemy = GetClosestEnemy();
         RotateToClosestEnemy();
-        if (ammo <= 1 || closestEnemy == null)
+        if (ammo <= 1 || closestEnemy == null || !laser)
         {
             lineRenderer.enabled = false;
             for (int i = 0; i < 4; i++)
@@ -73,6 +73,7 @@ public class Player : MonoBehaviour
             }
             return;
         }
+        closestEnemy.GetComponent<Enemy>().TakeDamage(Time.deltaTime * DMG);
         ammo -= fireRate * Time.deltaTime;
         lineRenderer.enabled = true;
         lineRenderer.SetPosition(0, firePoint.position);
@@ -117,10 +118,8 @@ public class Player : MonoBehaviour
         rotateToClosestEnemy.eulerAngles = new Vector3(0, 0, angle);
         transform.rotation = rotateToClosestEnemy;
     }
-    public void Hit(int DMG)
+    public void Hit(float DMG)
     {
-        if (isInvincible)
-            return;
         health -= DMG;
         if (health < 1)
         {
@@ -131,18 +130,26 @@ public class Player : MonoBehaviour
     }
     void Die()
     {
+        SetOpacity(0);
+        attackRangeCircle.SetActive(false);
         GameController.Instance.OnPlayerDeath();
-        gameObject.SetActive(false);
     }
-    IEnumerator Invincible(float duration)
+    public void SetOpacity(float targetOpacity)
+    {
+        if (targetOpacity > 1 || targetOpacity < 0)
+            Debug.LogError("Target opacity is not valid!");
+        Material mat = GetComponent<Renderer>().material;
+        mat.color = new Color(mat.color.r, mat.color.g, mat.color.b, targetOpacity);
+    }
+    public IEnumerator Invincible(float duration)
     {
         isInvincible = true;
-        playerMaterial.color = new Color(playerMaterial.color.r, playerMaterial.color.g, playerMaterial.color.b, 0.1f);
+        SetOpacity(0.1f);
         yield return new WaitForSeconds(duration);
         isInvincible = false;
-        playerMaterial.color = new Color(playerMaterial.color.r, playerMaterial.color.g, playerMaterial.color.b, 1);
+        SetOpacity(1);
     }
-    public void AddAmmo(int amount) // add ammo when enemy is killed
+    public void AddAmmo(int amount)
     {
         ammo += amount;
         if (ammo > 100)
@@ -150,11 +157,32 @@ public class Player : MonoBehaviour
     }
     public void GameStart()
     {
+        health = 1;
         ammo = 100;
-        health = 3;
+        attackRangeCircle.SetActive(true);
     }
     public void Test()
     {
         ammo += 100;
+    }
+    public void EnableLaser()
+    {
+        laser = true;
+    }
+    public void DisableLaser()
+    {
+        laser = false;
+        lineRenderer.enabled = false;
+        for (int i = 0; i < 4; i++)
+        {
+            laserParticles[i].Stop();
+        }
+    }
+    public void Revive()
+    {
+        health = 1;
+        SetOpacity(1);
+        StartCoroutine(Invincible(2f));
+        attackRangeCircle.SetActive(true);
     }
 }
